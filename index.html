@@ -357,9 +357,34 @@ function speak(text) {
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 function heardSoFar() { return (state.finals.join(" ") + " " + state.interim).trim(); }
 
-function startRec() {
+// Ask for the microphone first, so a pending or blocked permission shows a clear message
+// instead of an empty recording.
+let micOk = false;
+async function ensureMic() {
+  if (micOk) return true;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
+  setStatus('<span class="warn">주소창 근처에 뜬 마이크 사용 창에서 <b>허용</b>을 눌러 주세요.</span>');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(t => t.stop());
+    micOk = true;
+    return true;
+  } catch (e) {
+    const msg = e && e.name === "NotFoundError"
+      ? "이 컴퓨터에서 마이크를 찾지 못했어요. 마이크나 이어폰 마이크를 연결한 뒤 다시 눌러 주세요."
+      : "마이크 사용이 막혀 있어요. 주소창 왼쪽 아이콘을 눌러 마이크를 '허용'으로 바꾼 뒤 새로고침해 주세요.";
+    setStatus('<span class="warn">' + msg + "</span>");
+    return false;
+  }
+}
+
+async function startRec() {
   const s = state.sents[state.active];
-  if (!SR || !s) return;
+  if (!SR || !s || state.starting) return;
+  state.starting = true;
+  const ok = await ensureMic();
+  state.starting = false;
+  if (!ok) return;
   if (window.speechSynthesis) speechSynthesis.cancel();
   state.finals = []; state.interim = ""; state.recording = true; state.error = "";
   const btn = s.card.querySelector(".record");
