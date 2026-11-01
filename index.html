@@ -61,7 +61,7 @@ input[type=text], textarea { font: inherit; padding: 10px 12px; border: 1px soli
 .chip { font: inherit; border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 999px; padding: 8px 16px; cursor: pointer; }
 .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .chip small { opacity: .75; margin-left: 6px; font-variant-numeric: tabular-nums; }
-.speed { display: flex; gap: 6px; align-items: center; font-size: .9rem; color: var(--muted); }
+.speed { display: flex; flex-wrap: wrap; white-space: nowrap; gap: 6px; align-items: center; font-size: .9rem; color: var(--muted); }
 .speed .chip { padding: 4px 12px; font-size: .9rem; }
 button.main { font: inherit; font-weight: 700; border: 0; border-radius: 10px; padding: 12px 20px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
 button.ghost { font: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; background: transparent; color: var(--ink); cursor: pointer; }
@@ -74,7 +74,6 @@ button:focus-visible, .chip:focus-visible, input:focus-visible { outline: 3px so
 .sent .no { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 1.6em; padding-top: 2px; }
 .sent .text { font: 1.15rem/1.7 var(--font-read); flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .sent .ko { font-size: .9rem; color: var(--muted); margin: -4px 0 0; padding-left: 2.6em; }
-.hide-ko .sent .ko { display: none; }
 .sent .badge { font-size: .8rem; border-radius: 999px; padding: 2px 10px; white-space: nowrap; background: var(--skip); color: var(--muted); }
 .badge.pass { background: var(--hit); color: var(--hit-ink); }
 .badge.retry { background: var(--mid); color: var(--mid-ink); }
@@ -137,8 +136,9 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
         <button class="chip" type="button" data-rate="1">1x</button>
         <button class="chip" type="button" data-rate="1.2">1.2x</button>
       </div>
-      <div class="speed">해석
-        <button class="chip" type="button" id="koToggle" aria-pressed="true">보기</button>
+      <div class="speed" role="group" aria-label="목소리">목소리
+        <button class="chip" type="button" data-voice="f">여자</button>
+        <button class="chip" type="button" data-voice="m">남자</button>
       </div>
     </div>
     <div class="legend">
@@ -332,7 +332,15 @@ function updateDock() {
   $("submitBtn").disabled = !n || done < n;
 }
 
-// Native-speaker audio from the device's English voice.
+// 원어민 발음: 구글 TTS로 미리 만든 문장 소리(audio/<문장키>-f|m.mp3). 파일이 없으면 기기 목소리로 읽는다.
+// audioKey는 소리를 만든 스크립트(gen-audio.mjs)와 똑같아야 한다.
+function audioKey(text) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16).padStart(8, "0");
+}
+const player = new Audio();
+function stopAudio() { player.pause(); if (window.speechSynthesis) speechSynthesis.cancel(); }
 let voice = null;
 function pickVoice() {
   const vs = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
@@ -341,6 +349,14 @@ function pickVoice() {
 }
 if (window.speechSynthesis) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
 function speak(text) {
+  if (state.recording) return;
+  stopAudio();
+  player.onerror = () => speakDevice(text);
+  player.src = "audio/" + audioKey(text) + "-" + state.voice + ".mp3";
+  player.playbackRate = state.rate;
+  player.play().catch(() => {});
+}
+function speakDevice(text) {
   if (!window.speechSynthesis) { setStatus('<span class="warn">이 기기에서는 원어민 발음 듣기를 지원하지 않아요.</span>'); return; }
   if (state.recording) return;
   speechSynthesis.cancel();
@@ -384,7 +400,7 @@ async function startRec() {
   const ok = await ensureMic();
   state.starting = false;
   if (!ok) return;
-  if (window.speechSynthesis) speechSynthesis.cancel();
+  stopAudio();
   state.finals = []; state.interim = ""; state.recording = true; state.error = "";
   const btn = s.card.querySelector(".record");
   btn.textContent = "■ 다 읽었어요"; btn.classList.add("rec-on");
@@ -479,19 +495,17 @@ function submit() {
 
 function setRate(r) {
   state.rate = r; store("rate", String(r));
-  document.querySelectorAll(".speed .chip").forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.rate) === r)));
+  document.querySelectorAll(".speed .chip[data-rate]").forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.rate) === r)));
 }
-document.querySelectorAll(".speed .chip").forEach(b => b.onclick = () => setRate(Number(b.dataset.rate)));
+document.querySelectorAll(".speed .chip[data-rate]").forEach(b => b.onclick = () => setRate(Number(b.dataset.rate)));
 setRate(Number(store("rate")) || 1);
 
-function setKo(on) {
-  store("ko", on ? "1" : "0");
-  document.body.classList.toggle("hide-ko", !on);
-  $("koToggle").setAttribute("aria-pressed", String(on));
-  $("koToggle").textContent = on ? "보기" : "숨기기";
+function setVoice(v) {
+  state.voice = v; store("voice", v);
+  document.querySelectorAll(".speed .chip[data-voice]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.voice === v)));
 }
-$("koToggle").onclick = () => setKo(document.body.classList.contains("hide-ko"));
-setKo(store("ko") !== "0");
+document.querySelectorAll(".speed .chip[data-voice]").forEach(b => b.onclick = () => setVoice(b.dataset.voice));
+setVoice(store("voice") === "m" ? "m" : "f");
 
 function loadPassages() {
   $("sentences").innerHTML = '<p class="note">본문을 불러오는 중…</p>';
