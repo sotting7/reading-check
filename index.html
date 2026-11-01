@@ -148,11 +148,6 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
     </div>
     <div class="sentences" id="sentences"><p class="note">학년과 파트를 고르면 문장이 나와요.</p></div>
     <p class="note" id="status" role="status"></p>
-    <details id="testBox" hidden>
-      <summary>교사용 테스트: 선택한 문장을 음성 대신 글자로 채점</summary>
-      <textarea id="testInput" rows="2" placeholder="읽은 내용을 입력하면 같은 방식으로 채점해요"></textarea>
-      <button class="ghost" id="testBtn" type="button">선택한 문장 채점하기</button>
-    </details>
   </section>
 
   <p class="note">문장 점수 = 그 문장에서 맞게 읽은 단어 ÷ 채점 단어 × 100이고, 80점 이상이면 통과예요. 여러 번 도전하면 가장 높은 점수가 남아요. 최종 점수는 모든 문장 점수의 평균이에요. 사람 이름과 지명은 AI가 잘 알아듣지 못해 점수에서 뺐어요.</p>
@@ -381,6 +376,10 @@ async function ensureMic() {
 async function startRec() {
   const s = state.sents[state.active];
   if (!SR || !s || state.starting) return;
+  if (!$("sid").value.trim() || !$("sname").value.trim()) {
+    setStatus('<span class="warn">녹음하기 전에 STEP 1에 학번과 이름을 적어 주세요.</span>');
+    $("sid").focus(); return;
+  }
   state.starting = true;
   const ok = await ensureMic();
   state.starting = false;
@@ -434,6 +433,7 @@ function endRec() {
   if (!heard) { scoreSentence(s, s.best ? s.best.heard : "", !!s.best); setStatus("소리가 인식되지 않았어요. 마이크 가까이에서 다시 녹음해 주세요."); return; }
   const r = scoreSentence(s, heard, true);
   showResult(s, r, heard);
+  sendProgress(state.active, r, heard);
   setStatus((state.active + 1) + "번 문장 " + r.pct + "점. " + (r.pct >= PASS ? "다음 문장으로 넘어가세요." : "빨간 단어를 확인하고 다시 도전해 보세요."));
   if (r.pct >= PASS) {
     const next = state.sents.findIndex(x => !x.best);
@@ -441,6 +441,15 @@ function endRec() {
   }
 }
 function setStatus(html) { $("status").innerHTML = html; }
+
+// Each scored attempt goes to the teacher's '진행' sheet so progress shows before final submission.
+function sendProgress(i, r, heard) {
+  const s = state.sents[i];
+  const row = { type: "progress", studentId: $("sid").value.trim(), name: $("sname").value.trim(),
+    grade: state.grade, part: state.part + 1, sentence: i + 1, sentences: state.sents.length,
+    score: r.pct, best: s.best.pct, tries: s.tries, heard };
+  fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(row) }).catch(() => {});
+}
 
 function submit() {
   const sid = $("sid").value.trim(), name = $("sname").value.trim();
@@ -493,15 +502,8 @@ function loadPassages() {
 }
 
 $("submitBtn").onclick = submit;
-$("testBtn").onclick = () => {
-  const s = state.sents[state.active]; if (!s) return;
-  const heard = $("testInput").value.trim();
-  const r = scoreSentence(s, heard, true); showResult(s, r, heard);
-  setStatus((state.active + 1) + "번 문장 " + r.pct + "점 (테스트)");
-};
 ["sid", "sname"].forEach(id => { const v = store("me:" + id); if (v) $(id).value = v; $(id).addEventListener("change", () => store("me:" + id, $(id).value.trim())); });
 if (!SR) $("unsupported").hidden = false;
-if (/[?&#]test\b/.test(location.href)) $("testBox").hidden = false;
 loadPassages();
 </script>
 </body>
