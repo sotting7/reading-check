@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7과 본문 읽기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: one narrow reading column; steps stack top-to-bottom like a worksheet. */
+:root {
+  --paper: #f6f7f4;
+  --card: #ffffff;
+  --ink: #1d2a26;
+  --muted: #5d6b66;
+  --line: #d9dfdb;
+  --accent: #1f6f5c;
+  --accent-ink: #ffffff;
+  --hit: #d6efe4;
+  --hit-ink: #14513f;
+  --miss: #fbe1dc;
+  --miss-ink: #9b2c1c;
+  --skip: #eceee9;
+  --rec: #c2412d;
+  --font-ui: "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-read: "Atkinson Hyperlegible", "Noto Sans KR", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #131917; --card: #1b2320; --ink: #e6ece9; --muted: #9aa8a2; --line: #2e3a36;
+    --accent: #5cc3a5; --accent-ink: #0f1a17; --hit: #1f3d33; --hit-ink: #9fe3cb;
+    --miss: #46231e; --miss-ink: #f4b2a6; --skip: #262e2b; --rec: #ef6f5a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #131917; --card: #1b2320; --ink: #e6ece9; --muted: #9aa8a2; --line: #2e3a36;
+  --accent: #5cc3a5; --accent-ink: #0f1a17; --hit: #1f3d33; --hit-ink: #9fe3cb;
+  --miss: #46231e; --miss-ink: #f4b2a6; --skip: #262e2b; --rec: #ef6f5a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body {
+  background: var(--paper); color: var(--ink); font: 16px/1.6 var(--font-ui);
+  padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+main { max-width: 760px; margin: 0 auto; display: grid; gap: 20px; }
+header h1 { margin: 0; font-size: 1.5rem; text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); font-size: .95rem; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+h2 { margin: 0; font-size: 1.05rem; }
+.step { color: var(--muted); font-size: .8rem; letter-spacing: .06em; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; }
+label { display: grid; gap: 4px; font-size: .9rem; flex: 1 1 160px; }
+input[type=text], textarea { font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); width: 100%; }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: inherit; border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 999px; padding: 8px 16px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chip small { opacity: .75; margin-left: 6px; font-variant-numeric: tabular-nums; }
+button.main { font: inherit; font-weight: 700; border: 0; border-radius: 10px; padding: 12px 20px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+button.ghost { font: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 12px 20px; background: transparent; color: var(--ink); cursor: pointer; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, .chip:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button.rec { background: var(--rec); }
+.passage { font: 1.25rem/1.9 var(--font-read); padding: 4px 2px; overflow-wrap: anywhere; }
+.passage .t { font-size: .85rem; color: var(--muted); font-family: var(--font-ui); display: block; margin-bottom: 6px; }
+.w { border-radius: 4px; padding: 0 2px; transition: background .2s; }
+.w.hit { background: var(--hit); color: var(--hit-ink); }
+.w.miss { background: var(--miss); color: var(--miss-ink); text-decoration: underline wavy; text-underline-offset: 4px; }
+.w.skip { background: var(--skip); }
+.status { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .9rem; min-height: 1.6em; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rec); animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .dot { animation: none; } .w { transition: none; } }
+.score { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.score div { border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.score b { display: block; font-size: 1.8rem; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.score span { color: var(--muted); font-size: .85rem; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: .85rem; color: var(--muted); }
+.legend i { font-style: normal; padding: 0 6px; border-radius: 4px; }
+.note { font-size: .85rem; color: var(--muted); margin: 0; }
+.warn { background: var(--miss); color: var(--miss-ink); border-radius: 8px; padding: 10px 12px; margin: 0; font-size: .9rem; }
+.ok { background: var(--hit); color: var(--hit-ink); border-radius: 8px; padding: 10px 12px; margin: 0; font-size: .9rem; }
+details summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>7과 본문 소리 내어 읽기</h1>
+    <p>파트를 하나 골라 읽으면 AI가 받아쓴 결과와 본문을 비교해 점수를 매겨요.</p>
+  </header>
+
+  <p class="warn" id="unsupported" hidden>이 브라우저는 음성 인식을 지원하지 않아요. 크롬(Chrome)이나 엣지(Edge)로 다시 열어 주세요.</p>
+
+  <section aria-labelledby="s1">
+    <div class="step">STEP 1</div>
+    <h2 id="s1">내 정보</h2>
+    <div class="row">
+      <label for="sid">학번 <input id="sid" type="text" inputmode="numeric" placeholder="예: 20105" autocomplete="off"></label>
+      <label for="sname">이름 <input id="sname" type="text" placeholder="예: 홍길동" autocomplete="off"></label>
+    </div>
+  </section>
+
+  <section aria-labelledby="s2">
+    <div class="step">STEP 2</div>
+    <h2 id="s2">학년과 파트 고르기</h2>
+    <div class="choices" id="grades" role="group" aria-label="학년"></div>
+    <div class="choices" id="parts" role="group" aria-label="파트"></div>
+  </section>
+
+  <section aria-labelledby="s3" id="readSec">
+    <div class="step">STEP 3</div>
+    <h2 id="s3">읽기</h2>
+    <div class="passage" id="passage" aria-live="off"></div>
+    <div class="legend">
+      <span><i class="w hit">초록</i> 정확히 읽은 단어</span>
+      <span><i class="w miss">빨강</i> 인식되지 않은 단어</span>
+      <span><i class="w skip">회색</i> 사람·지명 (점수 제외)</span>
+    </div>
+    <div class="row">
+      <button class="main" id="recBtn" type="button">● 녹음 시작</button>
+      <button class="ghost" id="resetBtn" type="button">처음부터 다시</button>
+    </div>
+    <div class="status" id="status" role="status"></div>
+    <details id="testBox" hidden>
+      <summary>교사용 테스트: 음성 대신 글자로 입력</summary>
+      <textarea id="testInput" rows="3" placeholder="읽은 내용을 입력하면 같은 방식으로 채점해요"></textarea>
+      <button class="ghost" id="testBtn" type="button">이 글로 채점하기</button>
+    </details>
+  </section>
+
+  <section aria-labelledby="s4" id="resultSec" hidden>
+    <div class="step">STEP 4</div>
+    <h2 id="s4">결과</h2>
+    <div class="score">
+      <div><b id="rScore">-</b><span>정확도 점수 (100점)</span></div>
+      <div><b id="rWords">-</b><span>맞게 읽은 단어 / 채점 단어</span></div>
+      <div><b id="rTime">-</b><span>읽은 시간</span></div>
+      <div><b id="rWpm">-</b><span>분당 단어 수 (WPM)</span></div>
+    </div>
+    <details>
+      <summary>AI가 받아쓴 내용 보기</summary>
+      <p class="note" id="rTranscript"></p>
+    </details>
+    <div class="row">
+      <button class="main" id="submitBtn" type="button">이 결과 제출하기</button>
+      <button class="ghost" id="againBtn" type="button">다시 읽기</button>
+    </div>
+    <p class="note" id="submitMsg"></p>
+  </section>
+
+  <p class="note">점수 = 맞게 읽은 단어 수 ÷ 채점 단어 수 × 100. 사람 이름과 지명은 AI가 잘 알아듣지 못해 점수에서 뺐어요. 제출한 기록은 모두 선생님께 전달돼요.</p>
+</main>
+
+<script>
+// 본문과 결과 저장은 선생님 구글 계정의 Apps Script가 맡는다.
+const API = "https://script.google.com/macros/s/AKfycbxeJTHRs1Hy3_WQKMX65mE58OurQJx_PXSxC8WhqHascrHzysu120936Q1dJIIk84Cd/exec";
+let PASSAGES = [];
+
+const CONTRACTIONS = {"i'm":"i am","it's":"it is","don't":"do not","doesn't":"does not","can't":"can not","cannot":"can not","you're":"you are","let's":"let us","we're":"we are","they're":"they are","that's":"that is","isn't":"is not","won't":"will not","i've":"i have","what's":"what is","there's":"there is","he's":"he is","she's":"she is"};
+const NUMS = {zero:"0",one:"1",two:"2",three:"3",four:"4",five:"5",six:"6",seven:"7",eight:"8",nine:"9",ten:"10",eleven:"11",twelve:"12",thirteen:"13",fourteen:"14",fifteen:"15",sixteen:"16",seventeen:"17",eighteen:"18",nineteen:"19",twenty:"20",first:"1st",second:"2nd"};
+
+// One display word can become several comparison tokens (net-zero -> net zero, I'm -> i am).
+function normWord(w) {
+  w = w.toLowerCase().replace(/[’‘`]/g, "'").replace(/^[^a-z0-9']+|[^a-z0-9']+$/g, "");
+  if (!w) return [];
+  const expanded = (CONTRACTIONS[w] || w).split(" ");
+  return expanded.map(x => NUMS[x] || x.replace(/'s$/, "s").replace(/'/g, "")).filter(Boolean);
+}
+function tokenize(text) {
+  return text.replace(/[-–—]/g, " ").split(/\s+/).flatMap(normWord);
+}
+
+// Longest common subsequence: which target tokens appear, in order, in what was heard.
+function align(target, heard) {
+  const n = target.length, m = heard.length;
+  const dp = Array.from({length: n + 1}, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    dp[i][j] = target[i] === heard[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const hit = new Array(n).fill(false);
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (target[i] === heard[j]) { hit[i] = true; i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) i++; else j++;
+  }
+  return hit;
+}
+
+const $ = id => document.getElementById(id);
+const state = { grade: null, part: null, words: [], finals: [], interim: "", recording: false, started: 0, seconds: 0, result: null, error: "" };
+
+function store(key, val) { try { if (val === undefined) return localStorage.getItem(key); localStorage.setItem(key, val); } catch (e) { return null; } }
+
+function renderGrades() {
+  $("grades").innerHTML = "";
+  PASSAGES.forEach(g => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = g.grade + "학년";
+    b.setAttribute("aria-pressed", String(state.grade === g.grade));
+    b.onclick = () => { state.grade = g.grade; state.part = null; renderGrades(); renderParts(); renderPassage(); };
+    $("grades").appendChild(b);
+  });
+}
+function renderParts() {
+  const g = PASSAGES.find(x => x.grade === state.grade);
+  $("parts").innerHTML = "";
+  if (!g) return;
+  g.parts.forEach((p, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip";
+    b.innerHTML = "Part " + (i + 1) + "<small>" + p.split(/\s+/).length + "단어</small>";
+    b.setAttribute("aria-pressed", String(state.part === i));
+    b.onclick = () => { if (state.recording) return; state.part = i; renderParts(); renderPassage(); };
+    $("parts").appendChild(b);
+  });
+}
+function renderPassage() {
+  resetReading();
+  const box = $("passage");
+  const g = PASSAGES.find(x => x.grade === state.grade);
+  if (!g || state.part === null) {
+    box.innerHTML = '<p class="note">학년과 파트를 고르면 여기에 본문이 나와요.</p>';
+    $("recBtn").disabled = true; return;
+  }
+  const exclude = new Set(g.exclude.map(w => w.toLowerCase()));
+  box.innerHTML = '<span class="t">' + g.grade + "학년 · " + g.title + " · Part " + (state.part + 1) + "</span>";
+  state.words = [];
+  g.parts[state.part].split(/\s+/).forEach((raw, idx) => {
+    const span = document.createElement("span");
+    span.className = "w"; span.textContent = raw;
+    const bare = raw.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, "").replace(/'s$/, "").toLowerCase();
+    const skip = exclude.has(bare);
+    if (skip) span.classList.add("skip");
+    box.appendChild(span); box.appendChild(document.createTextNode(" "));
+    state.words.push({ span, tokens: tokenize(raw), skip });
+  });
+  $("recBtn").disabled = !SR;
+}
+
+function score(heardText, final) {
+  const target = [], owner = [];
+  state.words.forEach((w, wi) => w.tokens.forEach(t => { target.push(t); owner.push(wi); }));
+  const hit = align(target, tokenize(heardText));
+  const wordHit = state.words.map(() => true);
+  target.forEach((t, k) => { if (!hit[k]) wordHit[owner[k]] = false; });
+  // While reading, only mark words up to the furthest one reached so far.
+  let reached = -1; wordHit.forEach((h, i) => { if (h && !state.words[i].skip) reached = i; });
+  let ok = 0, total = 0; const missed = [];
+  state.words.forEach((w, i) => {
+    w.span.classList.remove("hit", "miss");
+    if (w.skip) return;
+    total++;
+    if (wordHit[i]) { ok++; w.span.classList.add("hit"); }
+    else if (final || i < reached) { w.span.classList.add("miss"); if (final) missed.push(w.span.textContent); }
+  });
+  return { ok, total, missed, pct: total ? Math.round(ok / total * 100) : 0 };
+}
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+function heardSoFar() { return (state.finals.join(" ") + " " + state.interim).trim(); }
+
+function startRec() {
+  if (!SR || state.part === null) return;
+  state.finals = []; state.interim = ""; state.recording = true; state.started = Date.now(); state.error = "";
+  $("resultSec").hidden = true; $("submitMsg").textContent = "";
+  rec = new SR();
+  rec.lang = "en-US"; rec.continuous = true; rec.interimResults = true;
+  rec.onresult = e => {
+    let interim = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i];
+      if (r.isFinal) state.finals.push(r[0].transcript); else interim += r[0].transcript + " ";
+    }
+    state.interim = interim;
+    score(heardSoFar(), false);
+  };
+  rec.onerror = e => {
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+      state.recording = false;
+      state.error = "마이크 사용이 막혀 있어요. 주소창 왼쪽 아이콘을 눌러 마이크를 '허용'으로 바꾼 뒤 다시 눌러 주세요.";
+    } else if (e.error === "network") {
+      state.recording = false;
+      state.error = "인터넷 연결이 불안정해 음성 인식이 끊겼어요. 연결을 확인하고 다시 읽어 주세요.";
+    } else if (e.error === "audio-capture") {
+      state.recording = false;
+      state.error = "마이크를 찾지 못했어요. 마이크(이어폰)가 연결되어 있는지 확인해 주세요.";
+    }
+  };
+  // Chrome ends recognition after a pause; restart until the student presses stop.
+  rec.onend = () => {
+    if (state.recording) { try { rec.start(); } catch (e) {} return; }
+    if (state.error) {
+      $("recBtn").textContent = "● 녹음 시작"; $("recBtn").classList.remove("rec");
+      state.words.forEach(w => w.span.classList.remove("hit", "miss"));
+      setStatus('<span class="warn">' + state.error + "</span>");
+      return;
+    }
+    finish();
+  };
+  rec.start();
+  $("recBtn").textContent = "■ 다 읽었어요";
+  $("recBtn").classList.add("rec");
+  setStatus('<span class="dot"></span> 듣고 있어요. 본문을 처음부터 끝까지 읽은 뒤 버튼을 눌러 주세요.');
+}
+function stopRec() {
+  state.recording = false;
+  state.seconds = Math.round((Date.now() - state.started) / 1000);
+  setStatus("채점하는 중…");
+  if (rec) rec.stop(); else finish();
+}
+function finish(heard) {
+  $("recBtn").textContent = "● 녹음 시작";
+  $("recBtn").classList.remove("rec");
+  const text = heard !== undefined ? heard : heardSoFar();
+  const r = score(text, true);
+  const heardCount = tokenize(text).length;
+  const wpm = state.seconds ? Math.round(heardCount / (state.seconds / 60)) : 0;
+  state.result = { ...r, transcript: text, seconds: state.seconds, wpm };
+  $("rScore").textContent = r.pct;
+  $("rWords").textContent = r.ok + " / " + r.total;
+  $("rTime").textContent = state.seconds ? Math.floor(state.seconds / 60) + "분 " + (state.seconds % 60) + "초" : "-";
+  $("rWpm").textContent = wpm || "-";
+  $("rTranscript").textContent = text || "(인식된 내용이 없어요)";
+  $("resultSec").hidden = false;
+  $("submitBtn").disabled = !text;
+  setStatus(text ? "채점이 끝났어요. 결과를 확인하고 제출하거나 다시 읽어 보세요." : "소리가 인식되지 않았어요. 마이크 가까이에서 다시 읽어 주세요.");
+}
+function resetReading() {
+  if (state.recording) { state.recording = false; if (rec) rec.abort(); }
+  state.finals = []; state.interim = ""; state.result = null;
+  state.words.forEach(w => w.span.classList.remove("hit", "miss"));
+  $("resultSec").hidden = true; setStatus("");
+  $("recBtn").textContent = "● 녹음 시작"; $("recBtn").classList.remove("rec");
+}
+function setStatus(html) { $("status").innerHTML = html; }
+
+function submit() {
+  const sid = $("sid").value.trim(), name = $("sname").value.trim();
+  if (!sid || !name) { $("submitMsg").textContent = "STEP 1에 학번과 이름을 먼저 적어 주세요."; $("sid").focus(); return; }
+  const key = "tries:" + sid + ":" + state.grade + ":" + state.part;
+  const tries = (parseInt(store(key) || "0", 10) || 0) + 1;
+  const r = state.result;
+  const row = { studentId: sid, name, grade: state.grade, part: state.part + 1, score: r.pct, correct: r.ok, total: r.total,
+    seconds: r.seconds, wpm: r.wpm, missed: r.missed.join(", "), transcript: r.transcript, attempt: tries };
+  $("submitBtn").disabled = true; $("submitMsg").textContent = "제출하는 중…";
+  const done = () => { store(key, String(tries)); $("submitMsg").innerHTML = '<span class="ok">제출했어요. (' + tries + "번째 제출)</span>"; };
+  const fail = err => { $("submitBtn").disabled = false; $("submitMsg").innerHTML = '<span class="warn">제출하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요. (' + (err && err.message || err) + ")</span>"; };
+  // text/plain keeps this a simple request, so Apps Script answers without a CORS preflight.
+  fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(row) })
+    .then(r => r.json())
+    .then(res => res && res.ok ? done() : fail(res && res.error))
+    .catch(fail);
+}
+
+function loadPassages() {
+  $("passage").innerHTML = '<p class="note">본문을 불러오는 중…</p>';
+  fetch(API + "?action=passages")
+    .then(r => r.json())
+    .then(data => { PASSAGES = data; renderGrades(); renderParts(); renderPassage(); })
+    .catch(() => { $("passage").innerHTML = '<p class="warn">본문을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.</p>'; });
+}
+
+$("recBtn").onclick = () => state.recording ? stopRec() : startRec();
+$("resetBtn").onclick = resetReading;
+$("againBtn").onclick = () => { resetReading(); window.scrollTo({ top: $("readSec").offsetTop - 12, behavior: "smooth" }); };
+$("submitBtn").onclick = submit;
+$("testBtn").onclick = () => { state.seconds = 0; finish($("testInput").value); };
+["sid", "sname"].forEach(id => { const v = store("me:" + id); if (v) $(id).value = v; $(id).addEventListener("change", () => store("me:" + id, $(id).value.trim())); });
+if (!SR) $("unsupported").hidden = false;
+if (/[?&#]test\b/.test(location.href)) $("testBox").hidden = false;
+$("recBtn").disabled = true;
+loadPassages();
+</script>
+</body>
+</html>
